@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nightfall</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%2312141a' width='32' height='32' rx='8'/%3E%3Cpath fill='%235c6cff' d='M16 5a11 11 0 1 0 8.4 18.2A8.6 8.6 0 1 1 16 5z'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --accent: #5c6cff;
+      --bg: #0c0e13;
+      --sidebar: #14171e;
+      --chat: #0c0e13;
+      --elev: #1c2029;
+      --hover: rgba(255, 255, 255, 0.05);
+      --active: color-mix(in srgb, var(--accent) 22%, transparent);
+      --line: rgba(255, 255, 255, 0.08);
+      --text: #f3f4f7;
+      --muted: #9aa1ad;
+      --bubble-in: #262b36;
+      --bubble-out: var(--accent);
+      --out-text: #fff;
+      --danger: #ff5a67;
+      --ok: #3dbe7a;
+      --warn: #ffb020;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+      --sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+      --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+      --msg: 15px;
+      color-scheme: dark;
+    }
+    :root[data-theme="light"] {
+      --bg: #f3f4f7;
+      --sidebar: #ffffff;
+      --chat: #f7f8fb;
+      --elev: #ffffff;
+      --hover: rgba(16, 18, 27, 0.05);
+      --line: rgba(16, 18, 27, 0.08);
+      --text: #14161c;
+      --muted: #667085;
+      --bubble-in: #e8eaef;
+      --shadow: 0 18px 40px rgba(20, 22, 28, 0.12);
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    button, input, textarea { border: 0; background: none; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    #app, .app, .boot { height: 100%; }
+    .boot { display: grid; place-items: center; padding: 24px; background: radial-gradient(900px 420px at 50% -10%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 55%), var(--bg); }
+    .boot-card { width: min(420px, 100%); background: var(--sidebar); border: 1px solid var(--line); border-radius: 20px; padding: 28px 26px 24px; box-shadow: var(--shadow); }
+    .boot-card h1 { margin: 12px 0 6px; font-size: 28px; letter-spacing: -0.04em; }
+    .boot-card .lede { margin: 0 0 18px; color: var(--muted); line-height: 1.45; }
+    .logo { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--elev); color: var(--accent); }
+    .people { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .person-btn, .row, .chat, .contact { width: 100%; text-align: left; }
+    .person-btn { display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 12px; }
+    .person-btn:hover, .chat:hover, .contact:hover, .row:hover { background: var(--hover); }
+    label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+    label input, label textarea, .field, select {
+      display: block; width: 100%; margin-top: 6px; background: var(--bg); border: 1px solid var(--line);
+      border-radius: 12px; padding: 11px 12px; color: var(--text);
+    }
+    textarea { resize: vertical; }
+    .primary, .send, .accept {
+      background: var(--accent); color: #fff; border-radius: 12px; padding: 10px 14px; font-weight: 650;
+    }
+    .primary:disabled, .send:disabled { opacity: 0.4; cursor: default; }
+    .ghost { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+    .app { display: grid; grid-template-columns: 68px 332px minmax(0, 1fr); min-height: 0; }
+    .app.details-open { grid-template-columns: 68px 332px minmax(0, 1fr) 300px; }
+    .rail, .list, .main, .details { min-height: 0; min-width: 0; }
+    .rail {
+      display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0;
+      background: var(--sidebar); border-right: 1px solid var(--line);
+    }
+    .rail button { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; color: var(--muted); position: relative; }
+    .rail button.on, .rail button:hover { background: var(--hover); color: var(--text); }
+    .rail button.on { color: var(--accent); }
+    .rail .spacer { flex: 1; }
+    .dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 99px; background: var(--accent); }
+    .list { display: flex; flex-direction: column; background: var(--sidebar); border-right: 1px solid var(--line); }
+    .pane-head, .thread-head, .details-head { height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px 0 16px; }
+    .pane-head h2, .settings h2, .profile-block h2 { margin: 0; font-size: 20px; letter-spacing: -0.03em; }
+    .icon-btn { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--text); }
+    .icon-btn:hover { background: var(--hover); }
+    .search { padding: 0 12px 10px; position: relative; }
+    .search input { width: 100%; height: 36px; border-radius: 10px; background: var(--bg); padding: 0 12px 0 34px; border: 1px solid transparent; }
+    .search svg { position: absolute; left: 22px; top: 9px; color: var(--muted); }
+    #list { flex: 1; overflow: auto; padding: 4px; }
+    #list > .row { display: flex; padding: 12px 14px; border-radius: 12px; }
+    .row.active, #list > .row.active { background: var(--active); }
+    .chat > span, .contact > span { min-width: 0; }
+    .chat > span:last-child { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    .chat, .contact, .call-row {
+      display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+      padding: 9px 10px; border-radius: 12px; color: inherit;
+    }
+    :root[data-compact="1"] .chat, :root[data-compact="1"] .contact { padding: 6px 8px; }
+    .chat.active, .contact.active { background: var(--active); }
+    .chat b, .contact b, .call-row b { display: block; font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat.has-unread b { font-weight: 750; }
+    .preview, .sub, .status { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+    .when { color: var(--muted); font-size: 12px; }
+    .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--accent); color: white; font-size: 11px; display: grid; place-items: center; }
+    .avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; color: white; font-weight: 700; flex: none; }
+    .avatar.sm { width: 36px; height: 36px; font-size: 14px; }
+    .avatar.lg { width: 84px; height: 84px; font-size: 32px; }
+    .avatar.xl { width: 112px; height: 112px; font-size: 42px; }
+    .main { display: flex; flex-direction: column; background: var(--chat); position: relative; }
+    .thread-head { border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--sidebar) 88%, transparent); position: sticky; top: 0; z-index: 2; }
+    .who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .who h2 { margin: 0; font-size: 16px; font-weight: 700; }
+    .head-actions { display: flex; align-items: center; }
+    .status.warn { color: var(--danger); }
+    .status.ok { color: var(--ok); }
+    .banner { margin: 10px 16px 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--danger) 16%, var(--elev)); display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .banner button { background: var(--danger); color: white; border-radius: 999px; padding: 7px 12px; }
+    #scroll { flex: 1; overflow: auto; padding: 12px 0 8px; }
+    .thread[data-wall="dusk"] { background: radial-gradient(900px 420px at 0% 0%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 55%), var(--chat); }
+    .thread[data-wall="grid"] { background-color: var(--chat); background-image: radial-gradient(color-mix(in srgb, var(--text) 12%, transparent) 1px, transparent 1px); background-size: 18px 18px; }
+    .thread[data-wall="mesh"] { background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 18%, var(--chat)), var(--chat) 42%, color-mix(in srgb, var(--accent) 8%, var(--chat))); }
+    .hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 28px 20px 10px; color: var(--muted); }
+    .hero h3 { margin: 6px 0 0; color: var(--text); font-size: 22px; }
+    .day { display: flex; justify-content: center; margin: 14px 0; }
+    .day span { background: color-mix(in srgb, var(--elev) 80%, transparent); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--muted); }
+    .msg { display: flex; margin: 2px 16px; }
+    .msg.mine { justify-content: flex-end; }
+    .msg > .bubble { flex: none; }
+    .bubble { display: inline-flex; flex-wrap: wrap; align-items: flex-end; justify-content: flex-end; gap: 2px 8px; width: auto; max-width: min(560px, 78%); padding: 8px 10px 7px 12px; border-radius: 18px; line-height: 1.35; font-size: var(--msg); background: var(--bubble-in); }
+    .bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .bubble time { flex: none; font-size: 11px; opacity: 0.72; line-height: 1.2; }
+    .bubble img { flex: 1 0 100%; display: block; max-width: 260px; border-radius: 12px; }
+    .mine .bubble { background: var(--bubble-out); color: var(--out-text); border-bottom-right-radius: 6px; }
+    .theirs .bubble { border-bottom-left-radius: 6px; }
+    .bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .bubble img { margin-bottom: 4px; }
+    .event { display: flex; justify-content: center; margin: 10px 16px; }
+    .event span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); background: var(--elev); border-radius: 999px; padding: 5px 10px; font-size: 12px; }
+    .fresh .bubble { animation: rise 160ms ease; }
+    @keyframes rise { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .composer { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: end; padding: 10px 12px 14px; }
+    .composer textarea { width: 100%; min-height: 42px; max-height: 140px; border-radius: 16px; background: var(--elev); padding: 11px 14px; border: 1px solid var(--line); }
+    .send { height: 42px; border-radius: 14px; padding: 0 16px; }
+    .pending { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
+    .pending img { height: 48px; border-radius: 8px; }
+    .empty { margin: auto; text-align: center; color: var(--muted); max-width: 360px; padding: 24px; }
+    .empty h2 { color: var(--text); margin: 0 0 8px; font-size: 22px; letter-spacing: -0.03em; }
+    .code-card, .card { margin: 8px; padding: 14px; border-radius: 16px; background: var(--bg); border: 1px solid var(--line); }
+    .kicker { color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .code { display: block; margin: 6px 0 10px; font-family: var(--mono); font-size: 20px; letter-spacing: 0.04em; }
+    .add-row { display: flex; gap: 8px; }
+    .add-row input { flex: 1; height: 40px; border-radius: 12px; background: var(--sidebar); border: 1px solid var(--line); padding: 0 12px; }
+    .form-error { color: var(--danger); min-height: 1.2em; margin: 8px 2px 0; font-size: 13px; }
+    .details { display: none; flex-direction: column; background: var(--sidebar); border-left: 1px solid var(--line); overflow: auto; }
+    .app.details-open .details { display: flex; }
+    .profile-block { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 16px 16px; }
+    .profile-block p { color: var(--muted); margin: 6px 0; }
+    .action-row { display: flex; gap: 8px; }
+    .action-row button { width: 64px; height: 56px; border-radius: 16px; background: var(--elev); display: grid; place-items: center; gap: 2px; font-size: 11px; color: var(--text); }
+    .stack { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 16px; }
+    .settings { overflow: auto; padding: 8px 22px 28px; }
+    .settings h2 { margin: 8px 0 14px; }
+    .group { background: var(--elev); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-bottom: 16px; }
+    .group .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); border-radius: 0; }
+    .group .row:last-child { border-bottom: 0; }
+    .swatches, .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; }
+    .swatch.on { border-color: var(--text); }
+    .choice { border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; }
+    .choice.on { background: var(--accent); color: white; border-color: transparent; }
+    .viewing { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 14px; background: color-mix(in srgb, var(--accent) 18%, var(--sidebar)); }
+    .mobile-only { display: none; }
+    dialog { border: 0; border-radius: 18px; padding: 22px; background: var(--sidebar); color: var(--text); width: min(440px, calc(100% - 32px)); box-shadow: var(--shadow); }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+    dialog h3 { margin: 0 0 6px; font-size: 22px; }
+    .quiet { color: var(--muted); line-height: 1.45; }
+    .nums { font-family: var(--mono); font-size: 28px; letter-spacing: 0.08em; margin: 16px 0; }
+    .row-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    #call-root:not(:empty) { position: fixed; inset: 0; z-index: 30; background: #07080c; color: white; display: flex; flex-direction: column; }
+    .call-stage { flex: 1; display: grid; place-items: center; position: relative; padding: 24px; }
+    .call-stage video.share { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+    .call-card { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; position: relative; z-index: 1; }
+    .call-card h2 { margin: 8px 0 0; font-size: 32px; letter-spacing: -0.03em; }
+    .pulse { animation: pulse 1.6s ease infinite; }
+    @keyframes pulse { 50% { transform: scale(1.04); } }
+    .pip { position: absolute; left: 20px; bottom: 20px; width: 180px; height: 120px; border-radius: 16px; overflow: hidden; background: #151821; border: 1px solid rgba(255,255,255,.12); z-index: 2; }
+    .pip video { width: 100%; height: 100%; object-fit: cover; }
+    .call-controls { display: flex; justify-content: center; gap: 14px; padding: 18px 16px 28px; }
+    .round { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: #2a2e38; color: white; }
+    .round.end, .round.decline { background: var(--danger); }
+    .round.end svg, .round.decline svg { transform: rotate(135deg); }
+    .round.accept { background: var(--ok); }
+    .round.off { background: white; color: #111; }
+    #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(12px); background: var(--elev); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; opacity: 0; pointer-events: none; transition: 160ms ease; z-index: 40; }
+    #toast.show { opacity: 1; transform: translateX(-50%); }
+    @media (max-width: 860px) {
+      .app, .app.details-open { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) 58px; }
+      .rail { grid-row: 2; flex-direction: row; width: 100%; height: 58px; border-right: 0; border-top: 1px solid var(--line); justify-content: space-around; padding: 0; }
+      .rail .spacer, .rail .logo { display: none; }
+      .list, .main { grid-row: 1; grid-column: 1; }
+      .app:not(.show-main) .main { display: none; }
+      .app.show-main .list { display: none; }
+      .mobile-only { display: inline-grid; }
+      .app.details-open .details { display: flex; position: fixed; inset: 0 0 58px 0; z-index: 6; }
+      .pip { width: 120px; height: 84px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .fresh .bubble, .pulse, #toast { animation: none; transition: none; } }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="call-root"></div>
+  <p id="live" class="sr" aria-live="polite"></p>
+  <div id="toast" role="status"></div>
+  <dialog id="new-dialog">
+    <form id="new-form">
+      <h3>New chat</h3>
+      <p class="quiet">Enter the code they gave you, or choose someone already on this computer.</p>
+      <label>Their code
+        <input id="new-code" class="field" autocomplete="off" placeholder="NF-XXXX-XXXX" maxlength="16">
+      </label>
+      <div id="existing" class="people"></div>
+      <p class="quiet">Or create their profile on this computer.</p>
+      <label>Name
+        <input id="new-name" maxlength="40" autocomplete="off" placeholder="Their name">
+      </label>
+      <p class="form-error" id="new-error"></p>
+      <div class="row-actions">
+        <button class="ghost" type="button" data-act="close-new">Cancel</button>
+        <button class="primary" type="submit">Start</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="verify-dialog">
+    <h3>Safety numbers</h3>
+    <p class="quiet">Read these three numbers together. They match only for this pair of profiles on this computer.</p>
+    <div class="nums" id="codes">····</div>
+    <div class="row-actions">
+      <button class="ghost" type="button" data-act="close-verify">Not now</button>
+      <button class="primary" type="button" data-act="confirm-codes">They match</button>
+    </div>
+  </dialog>
+  <script>
+    const KEY = "nightfall.v1";
+    const PREF_KEY = "nightfall.prefs";
+    const COLORS = ["#5c6cff", "#d08945", "#2f9d68", "#e15b84", "#7c6adf", "#3aa0b8"];
+    const ACCENTS = { indigo: "#5c6cff", copper: "#d08945", forest: "#2f9d68", rose: "#e15b84" };
+    const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const app = document.getElementById("app");
+    let state = load();
+    let prefs = loadPrefs();
+    let me = sessionStorage.getItem("nightfall.me") || "";
+    let home = sessionStorage.getItem("nightfall.home") || "";
+    let openId = "";
+    let selectedId = "";
+    let pane = "chats";
+    let focusMain = false;
+    let detailsOpen = false;
+    let query = "";
+    let shell = false;
+    let pendingImage = "";
+    let justSent = false;
+    let settingsSection = "profile";
+    const drafts = JSON.parse(sessionStorage.getItem("nightfall.drafts") || "{}");
+    const media = { cam: null, mic: null, screen: null, micOn: true, camOn: false, error: "" };
+
+    function load() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(KEY) || "");
+        if (parsed && Array.isArray(parsed.people)) return parsed;
+      } catch (_) { /* fresh */ }
+      return { people: [], threads: [], messages: [], callLog: [] };
+    }
+    function loadPrefs() {
+      try {
+        return Object.assign({ theme: "dark", accent: "indigo", wallpaper: "none", text: 15, compact: false, preview: true, disappearDefault: 0 }, JSON.parse(localStorage.getItem(PREF_KEY) || "{}"));
+      } catch (_) { return { theme: "dark", accent: "indigo", wallpaper: "none", text: 15, compact: false, preview: true, disappearDefault: 0 }; }
+    }
+    function save() {
+      localStorage.setItem(KEY, JSON.stringify(state));
+      sessionStorage.setItem("nightfall.drafts", JSON.stringify(drafts));
+    }
+    function savePrefs() { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); applyPrefs(); }
+    function applyPrefs() {
+      const root = document.documentElement;
+      root.dataset.theme = prefs.theme;
+      root.dataset.compact = prefs.compact ? "1" : "0";
+      root.style.setProperty("--accent", ACCENTS[prefs.accent] || ACCENTS.indigo);
+      root.style.setProperty("--msg", (Number(prefs.text) || 15) + "px");
+      root.style.colorScheme = prefs.theme === "light" ? "light" : "dark";
+    }
+    function uid() { return crypto.randomUUID(); }
+    function person(id) { return state.people.find((p) => p.id === id); }
+    function thread(id) { return state.threads.find((t) => t.id === id); }
+    function current() { return thread(openId); }
+    function otherOf(t) { return person(t.members.find((id) => id !== me)); }
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function safeColor(value) { return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value : "#5c6cff"; }
+    function initial(name) { return (name || "?").trim().slice(0, 1).toUpperCase(); }
+    function icon(path) {
+      return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+    }
+    const I = {
+      chats: icon('<path d="M7 17.5 4 20V7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H7z"/>'),
+      calls: icon('<path d="M7 3h3l1.5 4-2 1.5a12 12 0 0 0 6 6L17 13l4 1.5V18a2 2 0 0 1-2 2A15 15 0 0 1 4 5a2 2 0 0 1 2-2z"/>'),
+      contacts: icon('<path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1"/><circle cx="9.5" cy="7" r="3"/><path d="M20 8v6M17 11h6"/>'),
+      settings: icon('<circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/>'),
+      compose: icon('<path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="m13 7 4 4"/>'),
+      search: icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>'),
+      phone: icon('<path d="M7 3h3l1.5 4-2 1.5a12 12 0 0 0 6 6L17 13l4 1.5V18a2 2 0 0 1-2 2A15 15 0 0 1 4 5a2 2 0 0 1 2-2z"/>'),
+      video: icon('<path d="M3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="m15 10 6-3v10l-6-3z"/>'),
+      screen: icon('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'),
+      info: icon('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 8h.01"/>'),
+      attach: icon('<path d="m8 12 6.5-6.5a3 3 0 0 1 4 4L10 18a4.5 4.5 0 0 1-6.5-6.5L12 3"/>'),
+      send: icon('<path d="M12 19V5M6 11l6-6 6 6"/>'),
+      back: icon('<path d="M15 6 9 12l6 6"/>'),
+      mic: icon('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/>'),
+      micOff: icon('<path d="M9 9v2a3 3 0 0 0 5 2M15 10V6a3 3 0 0 0-5-2"/><path d="M6 11a6 6 0 0 0 9 5M4 4l16 16M12 17v4"/>'),
+      camOff: icon('<path d="m3 3 18 18M9 7H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h8"/><path d="m15 12 6 3V9l-4 2"/>'),
+      mark: icon('<path d="M16 5a11 11 0 1 0 4.2 9.1A8.2 8.2 0 1 1 16 5z"/>')
+    };
+    function avatar(p, size) {
+      if (!p) return "";
+      return `<span class="avatar ${size || ""}" style="background:${safeColor(p.color)}" aria-hidden="true">${escapeHtml(initial(p.name))}</span>`;
+    }
+    function contactCode(p) {
+      if (p.code) return p.code;
+      let h = 2166136261;
+      const source = "NF|" + p.id;
+      for (let i = 0; i < source.length; i++) { h ^= source.charCodeAt(i); h = Math.imul(h, 16777619); }
+      let body = "";
+      for (let i = 0; i < 8; i++) { body += ALPHABET[Math.abs(h) % ALPHABET.length]; h = Math.imul(h ^ (i + 1), 16777619); }
+      p.code = body.slice(0, 4) + "-" + body.slice(4);
+      return p.code;
+    }
+    function displayCode(p) { return "NF-" + contactCode(p); }
+    function findByCode(raw) {
+      const body = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^NF/, "");
+      if (body.length < 8) return null;
+      return state.people.find((p) => contactCode(p).replace("-", "") === body.slice(0, 8) && p.id !== me) || null;
+    }
+    function dayKey(ts) { const d = new Date(ts); return d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate(); }
+    function dayLabel(ts) {
+      const today = dayKey(Date.now());
+      const y = new Date(); y.setDate(y.getDate() - 1);
+      if (dayKey(ts) === today) return "Today";
+      if (dayKey(ts) === dayKey(y.getTime())) return "Yesterday";
+      return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    }
+    function clock(ts) { return new Date(ts).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
+    function listTime(ts) {
+      if (dayKey(ts) === dayKey(Date.now())) return clock(ts);
+      const y = new Date(); y.setDate(y.getDate() - 1);
+      if (dayKey(ts) === dayKey(y.getTime())) return "Yesterday";
+      return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    }
+    function fmtDuration(ms) {
+      const s = Math.max(0, Math.round(ms / 1000));
+      const m = Math.floor(s / 60);
+      const h = Math.floor(m / 60);
+      if (h) return h + ":" + String(m % 60).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+      return m + ":" + String(s % 60).padStart(2, "0");
+    }
+    function messagesFor(id) {
+      const now = Date.now();
+      return state.messages.filter((m) => m.threadId === id && (!m.expireAt || m.expireAt > now)).sort((a, b) => a.created - b.created);
+    }
+    function lastMessage(id) { const list = messagesFor(id); return list[list.length - 1]; }
+    function previewText(m) {
+      if (!m) return "No messages yet";
+      if (m.callEvent) return callLabel(m.callEvent, me);
+      if (m.system) return m.system;
+      if (!prefs.preview) return "Message";
+      return m.text || "Photo";
+    }
+    function unread(t) {
+      const since = t.read?.[me] || 0;
+      return messagesFor(t.id).filter((m) => m.from !== me && !m.system && !m.callEvent && m.created > since).length;
+    }
+    function allThreads() {
+      return state.threads.filter((t) => t.members.includes(me)).sort((a, b) => (lastMessage(b.id)?.created || 0) - (lastMessage(a.id)?.created || 0));
+    }
+    function myThreads() {
+      const q = query.trim().toLowerCase();
+      return allThreads().filter((t) => {
+        if (!q) return true;
+        const other = otherOf(t);
+        const blob = (other?.name || "") + " " + messagesFor(t.id).map((m) => m.text || "").join(" ");
+        return blob.toLowerCase().includes(q);
+      });
+    }
+    function ensureAck(t) {
+      if (t.ack) return;
+      t.ack = {};
+      for (const viewer of t.members) {
+        t.ack[viewer] = {};
+        for (const subject of t.members) {
+          if (subject !== viewer) t.ack[viewer][subject] = t.seen?.[subject] ?? person(subject)?.gen ?? 1;
+        }
+      }
+    }
+    function trustCopy(t, other) {
+      ensureAck(t);
+      if (t.ack[me]?.[other.id] !== other.gen) return { text: "Identity changed", cls: "warn" };
+      if (t.confirmed?.[me] && t.confirmed?.[other.id]) return { text: "Safety numbers compared", cls: "ok" };
+      if (t.confirmed?.[me]) return { text: "You compared numbers", cls: "" };
+      return { text: "Safety numbers not compared", cls: "" };
+    }
+    function safeImage(url) { return typeof url === "string" && url.startsWith("data:image/") && !/["'<>\s]/.test(url) ? url : ""; }
+    async function pairCodes(a, b) {
+      const material = [a, b].sort().join("|");
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("NIGHTFALL-PREVIEW|" + material));
+      const bytes = new Uint8Array(digest);
+      const num = (i) => 1000 + (((bytes[i] << 8) | bytes[i + 1]) % 9000);
+      return [num(0), num(2), num(4)];
+    }
+    function toast(text) {
+      const el = document.getElementById("toast");
+      el.textContent = text;
+      el.classList.add("show");
+      document.getElementById("live").textContent = text;
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => el.classList.remove("show"), 2200);
+    }
+    function createPerson(name) {
+      const personRecord = { id: uid(), name: name.trim(), bio: "", color: COLORS[state.people.length % COLORS.length], gen: 1 };
+      contactCode(personRecord);
+      state.people.push(personRecord);
+      save();
+      return personRecord;
+    }
+    function enter(id) {
+      me = id;
+      if (!home) home = id;
+      sessionStorage.setItem("nightfall.me", me);
+      sessionStorage.setItem("nightfall.home", home);
+      shell = false;
+      openId = "";
+      selectedId = "";
+      pane = "chats";
+      focusMain = false;
+      show();
+    }
+    function ensureThread(otherId) {
+      let t = state.threads.find((item) => item.members.includes(me) && item.members.includes(otherId));
+      if (!t) {
+        const other = person(otherId);
+        t = {
+          id: uid(), members: [me, otherId],
+          seen: { [me]: person(me).gen, [otherId]: other.gen },
+          ack: { [me]: { [otherId]: other.gen }, [otherId]: { [me]: person(me).gen } },
+          confirmed: {}, disappearMs: Number(prefs.disappearDefault) || 0, read: {}, muted: {}
+        };
+        state.threads.push(t);
+        state.messages.push({ id: uid(), threadId: t.id, from: me, text: "", created: Date.now(), expireAt: 0, system: "You connected with " + other.name });
+      }
+      openId = t.id;
+      pane = "chats";
+      focusMain = true;
+      save();
+      return t;
+    }
+    function markRead(t) {
+      const newest = lastMessage(t.id)?.created || 0;
+      if ((t.read?.[me] || 0) >= newest) return;
+      t.read = t.read || {};
+      t.read[me] = Date.now();
+      save();
+    }
+    function sweep() {
+      const now = Date.now();
+      const next = state.messages.filter((m) => !m.expireAt || m.expireAt > now);
+      if (next.length === state.messages.length) return false;
+      state.messages = next;
+      save();
+      return true;
+    }
+    function prepare() {
+      let dirty = false;
+      state.callLog = state.callLog || [];
+      for (const p of state.people) if (!p.code) { contactCode(p); dirty = true; }
+      if (dirty) save();
+      applyPrefs();
+    }
+
+    function show() {
+      if (!me || !person(me)) { shell = false; app.innerHTML = gateHtml(); document.getElementById("gate-name")?.focus(); return; }
+      if (!shell) { app.innerHTML = shellHtml(); shell = true; bindShell(); }
+      paintChrome();
+      paintBanner();
+      paintList();
+      paintMain();
+      paintDetails();
+      paintCall(false);
+    }
+    function gateHtml() {
+      const existing = state.people.map((p) => `<button class="person-btn" type="button" data-act="enter" data-id="${p.id}">${avatar(p, "sm")}<span><b>${escapeHtml(p.name)}</b><span class="sub">${escapeHtml(displayCode(p))}</span></span></button>`).join("");
+      return `<main class="boot"><form class="boot-card" id="gate-form">
+        <div class="logo">${I.mark}</div>
+        <h1>Nightfall</h1>
+        <p class="lede">Choose a name. You get a code. Someone enters that code to add you.</p>
+        ${existing ? `<div class="people">${existing}</div>` : ""}
+        <label>${existing ? "New profile" : "Your name"}<input id="gate-name" maxlength="40" required placeholder="Ada" autocomplete="name"></label>
+        <button class="primary" type="submit">Continue</button>
+      </form></main>`;
+    }
+    function shellHtml() {
+      return `<div class="app"><nav class="rail">
+        <button class="logo" type="button" data-act="nav" data-pane="chats" aria-label="Nightfall">${I.mark}</button>
+        <button type="button" data-act="nav" data-pane="chats" aria-label="Chats" id="nav-chats">${I.chats}</button>
+        <button type="button" data-act="nav" data-pane="calls" aria-label="Calls" id="nav-calls">${I.calls}</button>
+        <button type="button" data-act="nav" data-pane="contacts" aria-label="Contacts" id="nav-contacts">${I.contacts}</button>
+        <div class="spacer"></div>
+        <button type="button" data-act="nav" data-pane="settings" aria-label="Settings" id="nav-settings">${I.settings}</button>
+      </nav>
+      <section class="list"><header class="pane-head"><h2 id="pane-title">Chats</h2><span id="pane-action"></span></header>
+        <div class="search">${I.search}<input id="q" type="text" placeholder="Search" autocomplete="off" aria-label="Search"></div>
+        <div id="list"></div></section>
+      <section class="main" id="main"></section>
+      <aside class="details" id="details"></aside></div>`;
+    }
+    function bindShell() {
+      const q = document.getElementById("q");
+      q.value = query;
+      q.addEventListener("input", () => { query = q.value; paintList(); });
+    }
+    function paintChrome() {
+      const root = app.querySelector(".app");
+      const showMain = pane === "chats" ? Boolean(openId) : pane === "contacts" ? Boolean(selectedId) : pane === "settings" ? focusMain : false;
+      root.classList.toggle("show-main", showMain);
+      root.classList.toggle("thread-open", pane === "chats" && Boolean(openId));
+      root.classList.toggle("details-open", detailsOpen && pane === "chats" && Boolean(openId));
+      document.getElementById("pane-title").textContent = { chats: "Chats", calls: "Calls", contacts: "Contacts", settings: "Settings" }[pane];
+      const search = document.querySelector(".search");
+      if (search) search.hidden = pane === "settings" || pane === "calls";
+      document.getElementById("pane-action").innerHTML = pane === "chats" ? `<button class="icon-btn" type="button" data-act="new" aria-label="New chat">${I.compose}</button>` : "";
+      for (const name of ["chats", "calls", "contacts", "settings"]) {
+        document.getElementById("nav-" + name).classList.toggle("on", pane === name);
+      }
+      const unreadCount = allThreads().reduce((n, t) => n + unread(t), 0);
+      const chatNav = document.getElementById("nav-chats");
+      chatNav.querySelector(".dot")?.remove();
+      if (unreadCount) chatNav.insertAdjacentHTML("beforeend", `<span class="dot"></span>`);
+      const callNav = document.getElementById("nav-calls");
+      callNav.querySelector(".dot")?.remove();
+      const incoming = state.liveCall && state.liveCall.to === me && state.liveCall.phase === "ringing";
+      if (incoming) callNav.insertAdjacentHTML("beforeend", `<span class="dot"></span>`);
+    }
+    function paintBanner() {
+      let bar = document.getElementById("viewing");
+      const showBar = home && me !== home && person(me) && person(home);
+      if (showBar && !bar) {
+        bar = document.createElement("div");
+        bar.id = "viewing";
+        bar.className = "viewing";
+        app.prepend(bar);
+      }
+      if (!showBar && bar) bar.remove();
+      if (showBar) bar.innerHTML = `<span>This window is ${escapeHtml(person(me).name)}.</span><button class="ghost" type="button" data-act="return">Return to ${escapeHtml(person(home).name)}</button>`;
+    }
+    function paintList() {
+      const list = document.getElementById("list");
+      if (!list) return;
+      if (pane === "chats") list.innerHTML = chatListHtml();
+      else if (pane === "calls") list.innerHTML = callListHtml();
+      else if (pane === "contacts") list.innerHTML = contactListHtml();
+      else list.innerHTML = settingsListHtml();
+    }
+    function chatListHtml() {
+      const threads = myThreads();
+      if (!threads.length) return `<p class="quiet" style="padding:16px">${query.trim() ? "No chats match." : "No chats yet. Add someone with their code."}</p>`;
+      return threads.map((t) => {
+        const other = otherOf(t);
+        const last = lastMessage(t.id);
+        const count = unread(t);
+        return `<button class="chat ${t.id === openId ? "active" : ""} ${count ? "has-unread" : ""}" type="button" data-act="open" data-id="${t.id}">
+          ${avatar(other)}<span><b>${escapeHtml(other?.name || "Unknown")}</b><span class="preview">${escapeHtml(previewText(last))}</span></span>
+          <span>${last ? `<span class="when">${listTime(last.created)}</span>` : ""}${count ? `<span class="badge">${count}</span>` : ""}</span></button>`;
+      }).join("");
+    }
+    function contactListHtml() {
+      const self = person(me);
+      const q = query.trim().toLowerCase();
+      const people = state.people.filter((p) => p.id !== me && (!q || p.name.toLowerCase().includes(q) || displayCode(p).toLowerCase().includes(q)));
+      return `<div class="code-card"><span class="kicker">Your code</span><strong class="code">${escapeHtml(displayCode(self))}</strong>
+        <button class="primary" type="button" data-act="copy-code">Copy code</button>
+        <form id="add-form" class="add-row" style="margin-top:12px"><input id="add-code" placeholder="Enter their code" autocomplete="off" aria-label="Contact code"><button class="primary" type="submit">Add</button></form>
+        <p class="form-error" id="add-error"></p></div>
+        ${people.map((p) => `<button class="contact ${p.id === selectedId ? "active" : ""}" type="button" data-act="select-contact" data-id="${p.id}">${avatar(p)}<span><b>${escapeHtml(p.name)}</b><span class="sub">${escapeHtml(displayCode(p))}</span></span></button>`).join("") || `<p class="quiet" style="padding:12px">No other profiles on this computer yet.</p>`}`;
+    }
+    function callListHtml() {
+      const rows = (state.callLog || []).filter((c) => c.from === me || c.to === me);
+      if (!rows.length) return `<p class="quiet" style="padding:16px">Calls you make show up here.</p>`;
+      return rows.map((c) => {
+        const other = person(c.from === me ? c.to : c.from);
+        const missed = c.phase === "ringing" && c.endedBy === c.from && c.to === me;
+        const subtitle = missed ? "Missed" : c.phase === "live" ? (c.from === me ? "Outgoing" : "Incoming") + " · " + fmtDuration(c.duration) : (c.from === me ? "Cancelled" : "Declined");
+        return `<button class="call-row" type="button" data-act="open-thread" data-id="${c.threadId}">${avatar(other, "sm")}<span><b>${escapeHtml(other?.name || "Unknown")}</b><span class="sub" style="${missed ? "color:var(--danger)" : ""}">${escapeHtml(subtitle)}</span></span><span class="when">${listTime(c.at)}</span></button>`;
+      }).join("");
+    }
+    function settingsListHtml() {
+      const items = [["profile", "Profile"], ["appearance", "Appearance"], ["chats", "Chats"], ["calls", "Calls"], ["privacy", "Privacy"]];
+      return items.map(([id, label]) => `<button class="row ${settingsSection === id ? "active" : ""}" type="button" data-act="settings" data-id="${id}"><b>${label}</b></button>`).join("");
+    }
+    function paintMain() {
+      const main = document.getElementById("main");
+      if (!main) return;
+      if (pane === "chats") main.innerHTML = chatMainHtml();
+      else if (pane === "contacts") main.innerHTML = contactMainHtml();
+      else if (pane === "settings") main.innerHTML = settingsMainHtml();
+      else main.innerHTML = `<div class="empty"><h2>Calls</h2><p>Open a chat and use the phone, video, or screen button.</p></div>`;
+      if (pane === "chats") bindComposer();
+    }
+    function chatMainHtml() {
+      const t = current();
+      if (!t || !t.members.includes(me)) {
+        const self = person(me);
+        return `<div class="empty"><h2>Your chats</h2><p>Your code is <b style="color:var(--text);font-family:var(--mono)">${escapeHtml(displayCode(self))}</b>. When someone enters it, they can message you.</p><p><button class="primary" type="button" data-act="new">New chat</button></p></div>`;
+      }
+      const other = otherOf(t);
+      const trust = trustCopy(t, other);
+      ensureAck(t);
+      const changed = t.ack[me]?.[other.id] !== other.gen;
+      let html = `<header class="thread-head"><div class="who"><button class="icon-btn mobile-only" type="button" data-act="back" aria-label="Chats">${I.back}</button>${avatar(other, "sm")}<div><h2>${escapeHtml(other.name)}</h2><div class="status ${trust.cls}">${escapeHtml(trust.text)}</div></div></div>
+        <div class="head-actions">
+          <button class="icon-btn" type="button" data-act="call" data-kind="video" aria-label="Video call">${I.video}</button>
+          <button class="icon-btn" type="button" data-act="call" data-kind="audio" aria-label="Voice call">${I.phone}</button>
+          <button class="icon-btn" type="button" data-act="call" data-kind="screen" aria-label="Share screen">${I.screen}</button>
+          <button class="icon-btn" type="button" data-act="details" aria-label="Chat details">${I.info}</button>
+        </div></header>`;
+      if (changed) html += `<div class="banner"><span>${escapeHtml(other.name)} presented a new identity.</span><button type="button" data-act="accept-id">I expected this</button></div>`;
+      html += `<div id="scroll" class="thread" data-wall="${escapeHtml(prefs.wallpaper)}">${renderMessages(messagesFor(t.id), other)}</div>`;
+      html += `<form class="composer" id="composer-form"><div class="pending" id="pending" hidden></div>
+        <button class="icon-btn" type="button" data-act="pick-image" aria-label="Attach a photo">${I.attach}</button>
+        <input id="file" class="sr" type="file" accept="image/*"><label class="sr" for="composer">Message</label>
+        <textarea id="composer" rows="1" placeholder="Write a message"></textarea>
+        <button class="send" id="send" type="submit" disabled aria-label="Send">${I.send}</button></form>`;
+      return html;
+    }
+    function renderMessages(msgs, other) {
+      if (!msgs.length) return `<div class="hero">${avatar(other, "lg")}<h3>${escapeHtml(other.name)}</h3><p>This is the start of your chat.</p></div>`;
+      let html = "";
+      let prev = null;
+      for (const m of msgs) {
+        if (!prev || dayKey(prev.created) !== dayKey(m.created)) html += `<div class="day"><span>${dayLabel(m.created)}</span></div>`;
+        if (m.system) html += `<div class="event"><span>${escapeHtml(m.system)}</span></div>`;
+        else if (m.callEvent) html += `<div class="event"><span>${I.phone}${escapeHtml(callLabel(m.callEvent, me))}</span></div>`;
+        else {
+          const mine = m.from === me;
+          const image = safeImage(m.image);
+          const fresh = justSent && m === msgs[msgs.length - 1] ? " fresh" : "";
+          html += `<article class="msg ${mine ? "mine" : "theirs"}${fresh}"><div class="bubble">${image ? `<img alt="Attached photo" src="${image}">` : ""}${m.text ? `<p>${escapeHtml(m.text)}</p>` : ""}<time datetime="${new Date(m.created).toISOString()}">${clock(m.created)}</time></div></article>`;
+        }
+        prev = m;
+      }
+      justSent = false;
+      return html;
+    }
+    function callLabel(ev, viewer) {
+      const kind = ev.kind === "video" ? "Video" : ev.kind === "screen" ? "Screen share" : "Voice";
+      if (ev.phase !== "live") {
+        if (ev.endedBy === ev.from) return (viewer === ev.to ? "Missed " : "Cancelled ") + kind.toLowerCase() + " call";
+        return "Declined " + kind.toLowerCase() + " call";
+      }
+      return kind + " call · " + fmtDuration(ev.duration || 0);
+    }
+    function bindComposer() {
+      const t = current();
+      const composer = document.getElementById("composer");
+      if (!t || !composer) return;
+      const focused = document.activeElement?.id === "composer";
+      composer.value = drafts[openId] || "";
+      const grow = () => { composer.style.height = "auto"; composer.style.height = Math.min(composer.scrollHeight, 140) + "px"; syncSend(); };
+      composer.addEventListener("input", () => { drafts[openId] = composer.value; grow(); });
+      composer.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); document.getElementById("composer-form").requestSubmit(); }
+      });
+      composer.addEventListener("paste", (event) => {
+        const file = [...(event.clipboardData?.files || [])].find((item) => item.type.startsWith("image/"));
+        if (file) { event.preventDefault(); takeImage(file); }
+      });
+      document.getElementById("file").addEventListener("change", (event) => { const file = event.target.files?.[0]; if (file) takeImage(file); });
+      document.getElementById("composer-form").addEventListener("submit", (event) => { event.preventDefault(); doSend(); });
+      if (pendingImage) showPending();
+      grow();
+      markRead(t);
+      const scroll = document.getElementById("scroll");
+      if (scroll) scroll.scrollTop = scroll.scrollHeight;
+      if (focused) composer.focus();
+      paintList();
+    }
+    function contactMainHtml() {
+      const p = person(selectedId);
+      if (!p || p.id === me) return `<div class="empty"><h2>Contacts</h2><p>Copy your code, or enter someone else's to add them.</p></div>`;
+      return profileCard(p, true);
+    }
+    function profileCard(p, actions) {
+      return `<div class="profile-block" style="margin:auto">${avatar(p, "xl")}<h2>${escapeHtml(p.name)}</h2><p class="code" style="font-size:16px">${escapeHtml(displayCode(p))}</p><p>${escapeHtml(p.bio || "No note yet.")}</p>
+        ${actions ? `<div class="action-row">
+          <button type="button" data-act="message-contact" data-id="${p.id}">${I.chats}<span>Chat</span></button>
+          <button type="button" data-act="call-contact" data-id="${p.id}" data-kind="audio">${I.phone}<span>Audio</span></button>
+          <button type="button" data-act="call-contact" data-id="${p.id}" data-kind="video">${I.video}<span>Video</span></button>
+        </div>` : ""}</div>`;
+    }
+    function settingsMainHtml() {
+      const self = person(me);
+      const back = `<button class="icon-btn mobile-only" type="button" data-act="settings-back" aria-label="Settings">${I.back}</button>`;
+      if (settingsSection === "appearance") {
+        return `<div class="settings">${back}<h2>Appearance</h2>
+          <div class="group"><div class="row"><span>Theme</span><span class="choices">
+            <button class="choice ${prefs.theme === "dark" ? "on" : ""}" type="button" data-act="pref" data-key="theme" data-value="dark">Dark</button>
+            <button class="choice ${prefs.theme === "light" ? "on" : ""}" type="button" data-act="pref" data-key="theme" data-value="light">Light</button>
+          </span></div>
+          <div class="row"><span>Accent</span><span class="swatches">${Object.entries(ACCENTS).map(([name, color]) => `<button class="swatch ${prefs.accent === name ? "on" : ""}" style="background:${color}" type="button" data-act="pref" data-key="accent" data-value="${name}" aria-label="${name}"></button>`).join("")}</span></div>
+          <div class="row"><span>Wallpaper</span><span class="choices">${["none", "dusk", "grid", "mesh"].map((w) => `<button class="choice ${prefs.wallpaper === w ? "on" : ""}" type="button" data-act="pref" data-key="wallpaper" data-value="${w}">${w[0].toUpperCase() + w.slice(1)}</button>`).join("")}</span></div>
+          <div class="row"><span>Text size</span><span class="choices">${[14, 15, 17].map((n) => `<button class="choice ${Number(prefs.text) === n ? "on" : ""}" type="button" data-act="pref" data-key="text" data-value="${n}">${n === 14 ? "Small" : n === 17 ? "Large" : "Medium"}</button>`).join("")}</span></div>
+          <div class="row"><span>Compact list</span><button class="choice ${prefs.compact ? "on" : ""}" type="button" data-act="pref" data-key="compact" data-value="${prefs.compact ? "0" : "1"}">${prefs.compact ? "On" : "Off"}</button></div>
+          </div></div>`;
+      }
+      if (settingsSection === "chats") {
+        const options = [[0, "Keep"], [30000, "30 seconds"], [3600000, "1 hour"], [86400000, "1 day"]];
+        return `<div class="settings">${back}<h2>Chats</h2><div class="group">
+          <div class="row"><span>Show previews</span><button class="choice ${prefs.preview ? "on" : ""}" type="button" data-act="pref" data-key="preview" data-value="${prefs.preview ? "0" : "1"}">${prefs.preview ? "On" : "Off"}</button></div>
+          <div class="row"><span>New chats disappear</span><select id="default-disappear">${options.map(([ms, label]) => `<option value="${ms}" ${Number(prefs.disappearDefault) === ms ? "selected" : ""}>${label}</option>`).join("")}</select></div>
+        </div><p class="quiet">Press Enter to send. Shift+Enter adds a line.</p></div>`;
+      }
+      if (settingsSection === "calls") {
+        return `<div class="settings">${back}<h2>Calls</h2><div class="group"><div class="row"><span>Voice, video, and screen share</span></div></div>
+          <p class="quiet">From a chat, use the phone, video, or screen button. The other profile on this computer can accept. The microphone, camera, and screen stay on this device.</p></div>`;
+      }
+      if (settingsSection === "privacy") {
+        return `<div class="settings">${back}<h2>Privacy</h2><div class="group">
+          <button class="row" type="button" data-act="reset-id"><span>Rotate my identity</span></button>
+        </div><p class="quiet">Messages, contacts, and call history stay in this browser on this computer. Safety numbers are a check between two profiles here. Compare them before you trust a name.</p></div>`;
+      }
+      const others = state.people.filter((p) => p.id !== me);
+      return `<div class="settings">${back}<h2>Profile</h2>
+        <div class="profile-block">${avatar(self, "lg")}<p class="kicker">Your code</p><strong class="code">${escapeHtml(displayCode(self))}</strong><button class="primary" type="button" data-act="copy-code">Copy code</button></div>
+        <form id="profile-form" class="group" style="padding:12px"><label>Name<input id="profile-name" maxlength="40" required value="${escapeHtml(self.name)}"></label>
+          <label>Note<textarea id="profile-bio" maxlength="140" rows="2">${escapeHtml(self.bio || "")}</textarea></label>
+          <div class="row" style="border:0;padding-left:0"><span>Color</span><span class="swatches">${COLORS.map((color) => `<button class="swatch ${safeColor(self.color) === color ? "on" : ""}" style="background:${color}" type="button" data-act="color" data-value="${color}" aria-label="Color"></button>`).join("")}</span></div>
+          <button class="primary" type="submit">Save</button></form>
+        <h2 style="margin-top:22px;font-size:16px">Profiles on this computer</h2>
+        <div class="group">${others.map((p) => `<button class="row" type="button" data-act="switch" data-id="${p.id}">${avatar(p, "sm")}<span><b>${escapeHtml(p.name)}</b><span class="sub">${escapeHtml(displayCode(p))}</span></span></button>`).join("") || `<div class="row"><span class="quiet">Only you, so far.</span></div>`}
+          <button class="row" type="button" data-act="leave">Leave this window</button></div></div>`;
+    }
+    function paintDetails() {
+      const trust = document.getElementById("details");
+      if (!trust) return;
+      const t = current();
+      if (!detailsOpen || pane !== "chats" || !t || !t.members.includes(me)) { trust.innerHTML = ""; return; }
+      const other = otherOf(t);
+      const status = trustCopy(t, other);
+      const options = [[0, "Keep messages"], [30000, "30 seconds"], [3600000, "1 hour"], [86400000, "1 day"]];
+      trust.innerHTML = `<header class="details-head"><b>Details</b><button class="icon-btn" type="button" data-act="details" aria-label="Close details">${I.back}</button></header>
+        <div class="profile-block">${avatar(other, "lg")}<h2>${escapeHtml(other.name)}</h2><p>${escapeHtml(other.bio || "No note.")}</p><p class="status ${status.cls}">${escapeHtml(status.text)}</p>
+          <div class="action-row">
+            <button type="button" data-act="call" data-kind="audio">${I.phone}<span>Audio</span></button>
+            <button type="button" data-act="call" data-kind="video">${I.video}<span>Video</span></button>
+            <button type="button" data-act="call" data-kind="screen">${I.screen}<span>Screen</span></button>
+          </div></div>
+        <div class="stack"><button class="primary" type="button" data-act="verify">Compare safety numbers</button>
+          <label>Disappearing messages<select id="disappear">${options.map(([ms, label]) => `<option value="${ms}" ${Number(t.disappearMs) === ms ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+          <button class="ghost" type="button" data-act="mute">${t.muted?.[me] ? "Unmute chat" : "Mute chat"}</button>
+          <button class="ghost" type="button" data-act="switch" data-id="${other.id}">Use this window as ${escapeHtml(other.name)}</button>
+        </div>`;
+    }
+    function syncSend() {
+      const send = document.getElementById("send");
+      const composer = document.getElementById("composer");
+      if (!send || !composer) return;
+      send.disabled = !composer.value.trim() && !pendingImage;
+    }
+    function showPending() {
+      const slot = document.getElementById("pending");
+      if (!slot) return;
+      slot.hidden = !pendingImage;
+      slot.innerHTML = pendingImage ? `<img alt="Ready to send" src="${safeImage(pendingImage)}"><button type="button" data-act="clear-image">Remove</button>` : "";
+    }
+    function takeImage(file) {
+      if (!file.type.startsWith("image/") || file.size > 700000) { toast("Choose a photo under 700 KB"); return; }
+      const reader = new FileReader();
+      reader.onload = () => { pendingImage = String(reader.result || ""); showPending(); syncSend(); };
+      reader.readAsDataURL(file);
+    }
+    function doSend() {
+      const t = current();
+      const composer = document.getElementById("composer");
+      if (!t || !composer) return;
+      const text = composer.value.trim();
+      if (!text && !pendingImage) return;
+      state.messages.push({ id: uid(), threadId: t.id, from: me, text, image: pendingImage, created: Date.now(), expireAt: t.disappearMs ? Date.now() + Number(t.disappearMs) : 0 });
+      composer.value = "";
+      drafts[openId] = "";
+      pendingImage = "";
+      justSent = true;
+      save();
+      paintMain();
+    }
+
+    function myCall() {
+      const call = state.liveCall;
+      if (!call || call.phase === "ended") return null;
+      if (call.from !== me && call.to !== me) return null;
+      return call;
+    }
+    function stopStream(stream) { stream?.getTracks().forEach((track) => track.stop()); }
+    function stopMedia() {
+      stopStream(media.cam); stopStream(media.mic); stopStream(media.screen);
+      media.cam = media.mic = media.screen = null;
+      media.micOn = true; media.camOn = false; media.error = "";
+    }
+    function attachStreams() {
+      const local = document.getElementById("local-video");
+      const share = document.getElementById("share-video");
+      if (share) { share.srcObject = media.screen || null; share.hidden = !media.screen; }
+      if (local) {
+        const stream = media.cam || null;
+        local.srcObject = stream;
+        local.hidden = !stream || !media.camOn;
+        const pip = local.closest(".pip");
+        if (pip) pip.hidden = local.hidden;
+      }
+    }
+    async function enableMic() {
+      if (media.mic) return;
+      try { media.mic = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); media.error = ""; }
+      catch (_) { media.error = "Microphone stayed off."; }
+    }
+    async function enableCam() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: !media.mic, video: true });
+        if (!media.mic) media.mic = new MediaStream(stream.getAudioTracks());
+        else stream.getAudioTracks().forEach((track) => track.stop());
+        media.cam = new MediaStream(stream.getVideoTracks());
+        media.camOn = true;
+        media.error = "";
+      } catch (_) { media.error = "Camera stayed off."; }
+    }
+    async function enableShare() {
+      if (media.screen) { stopStream(media.screen); media.screen = null; return; }
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        media.screen = stream;
+        stream.getVideoTracks()[0]?.addEventListener("ended", () => { media.screen = null; paintCall(true); });
+      } catch (_) { toast("Screen share was cancelled"); }
+    }
+    function setMic(on) {
+      media.micOn = on;
+      media.mic?.getAudioTracks().forEach((track) => { track.enabled = on; });
+    }
+    async function startCall(kind, otherId) {
+      if (state.liveCall && state.liveCall.phase !== "ended") { toast("Already in a call"); return; }
+      const other = person(otherId);
+      if (!other) return;
+      const t = ensureThread(other.id);
+      state.liveCall = { id: uid(), threadId: t.id, from: me, to: other.id, kind, phase: "ringing", at: Date.now() };
+      save();
+      paintCall(true);
+      if (kind === "screen") { await enableMic(); await enableShare(); }
+      else if (kind === "video") await enableCam();
+      else await enableMic();
+      paintCall(true);
+    }
+    async function acceptCall() {
+      const call = state.liveCall;
+      if (!call || call.to !== me) return;
+      call.phase = "live";
+      call.connectedAt = Date.now();
+      save();
+      if (call.kind === "video") await enableCam();
+      else await enableMic();
+      if (call.kind === "screen") await enableShare();
+      paintCall(true);
+    }
+    function hangup() {
+      const call = state.liveCall;
+      if (!call) return;
+      const duration = call.connectedAt ? Date.now() - call.connectedAt : 0;
+      const event = { kind: call.kind, duration, phase: call.phase, endedBy: me, from: call.from, to: call.to };
+      state.messages.push({ id: uid(), threadId: call.threadId, from: call.from, text: "", created: Date.now(), expireAt: 0, callEvent: event });
+      state.callLog = state.callLog || [];
+      state.callLog.unshift({ id: call.id, threadId: call.threadId, from: call.from, to: call.to, kind: call.kind, at: call.at, duration, phase: call.phase, endedBy: me });
+      state.liveCall = null;
+      save();
+      stopMedia();
+      paintCall(true);
+      if (pane === "chats" && openId === call.threadId) paintMain();
+      if (pane === "calls") paintList();
+    }
+    function paintCall(force) {
+      const root = document.getElementById("call-root");
+      const call = myCall();
+      if (!call) { if (root.innerHTML) root.innerHTML = ""; return; }
+      const key = call.id + ":" + call.phase + ":" + me + ":" + (media.camOn ? "c" : "") + (media.screen ? "s" : "") + (media.micOn ? "m" : "");
+      if (!force && root.dataset.key === key) return;
+      root.dataset.key = key;
+      const other = person(call.from === me ? call.to : call.from);
+      const outgoing = call.from === me;
+      const live = call.phase === "live";
+      const status = live ? fmtDuration(Date.now() - (call.connectedAt || Date.now())) : outgoing ? "Calling…" : "Incoming " + (call.kind === "video" ? "video" : call.kind === "screen" ? "screen share" : "voice") + " call";
+      root.innerHTML = `<div class="call-stage" data-call="${key}">
+        <video id="share-video" class="share" autoplay playsinline hidden></video>
+        <div class="call-card">${avatar(other, "xl")}<h2>${escapeHtml(other?.name || "")}</h2><div data-timer>${escapeHtml(status)}</div><div class="quiet">${escapeHtml(media.error || "On this computer")}</div></div>
+        <div class="pip"><video id="local-video" autoplay muted playsinline hidden></video></div>
+      </div>
+      <div class="call-controls">${live ? `
+        <button class="round ${media.micOn ? "" : "off"}" type="button" data-act="toggle-mic" aria-label="Mute">${media.micOn ? I.mic : I.micOff}</button>
+        <button class="round ${media.camOn ? "" : "off"}" type="button" data-act="toggle-cam" aria-label="Camera">${media.camOn ? I.video : I.camOff}</button>
+        <button class="round ${media.screen ? "off" : ""}" type="button" data-act="toggle-share" aria-label="Share screen">${I.screen}</button>
+        <button class="round end" type="button" data-act="hangup" aria-label="End call">${I.phone}</button>` : outgoing ? `<button class="round end" type="button" data-act="hangup" aria-label="Cancel call">${I.phone}</button>` : `
+        <button class="round decline" type="button" data-act="hangup" aria-label="Decline">${I.phone}</button>
+        <button class="round accept" type="button" data-act="accept-call" aria-label="Accept">${I.phone}</button>`}
+      </div>`;
+      attachStreams();
+    }
+
+    document.body.addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-act]");
+      if (!button) return;
+      const act = button.dataset.act;
+      if (act === "enter") enter(button.dataset.id);
+      if (act === "nav") { pane = button.dataset.pane; focusMain = false; if (pane !== "chats") detailsOpen = false; query = ""; const q = document.getElementById("q"); if (q) q.value = ""; show(); }
+      if (act === "back") { openId = ""; focusMain = false; detailsOpen = false; show(); }
+      if (act === "new") openNew();
+      if (act === "close-new") document.getElementById("new-dialog").close();
+      if (act === "open" || act === "open-thread") { openId = button.dataset.id; pane = "chats"; focusMain = true; pendingImage = ""; show(); }
+      if (act === "details") { detailsOpen = !detailsOpen; show(); }
+      if (act === "select-contact") { selectedId = button.dataset.id; focusMain = true; show(); }
+      if (act === "message-contact") { ensureThread(button.dataset.id); show(); }
+      if (act === "call") { const t = current(); if (t) await startCall(button.dataset.kind, otherOf(t).id); }
+      if (act === "call-contact") { ensureThread(button.dataset.id); await startCall(button.dataset.kind, button.dataset.id); }
+      if (act === "accept-call") await acceptCall();
+      if (act === "hangup") hangup();
+      if (act === "toggle-mic") { setMic(!media.micOn); paintCall(true); }
+      if (act === "toggle-cam") { if (media.camOn) { stopStream(media.cam); media.cam = null; media.camOn = false; } else { await enableCam(); } paintCall(true); }
+      if (act === "toggle-share") { await enableShare(); paintCall(true); }
+      if (act === "verify") openVerify();
+      if (act === "close-verify") document.getElementById("verify-dialog").close();
+      if (act === "confirm-codes") {
+        const t = current();
+        if (t) { t.confirmed = t.confirmed || {}; t.confirmed[me] = true; save(); }
+        document.getElementById("verify-dialog").close();
+        show();
+      }
+      if (act === "accept-id") {
+        const t = current();
+        const other = otherOf(t);
+        ensureAck(t);
+        t.ack[me][other.id] = other.gen;
+        t.confirmed[me] = false;
+        save();
+        show();
+      }
+      if (act === "switch") {
+        const threadId = openId;
+        me = button.dataset.id;
+        sessionStorage.setItem("nightfall.me", me);
+        openId = threadId && thread(threadId)?.members.includes(me) ? threadId : "";
+        shell = false;
+        show();
+      }
+      if (act === "return") { me = home; sessionStorage.setItem("nightfall.me", me); shell = false; show(); }
+      if (act === "reset-id") {
+        const self = person(me);
+        self.gen += 1;
+        for (const t of state.threads) { if (!t.members.includes(me)) continue; ensureAck(t); t.confirmed = {}; }
+        save();
+        toast("Identity rotated");
+        show();
+      }
+      if (act === "settings") { settingsSection = button.dataset.id; pane = "settings"; focusMain = true; show(); }
+      if (act === "settings-back") { focusMain = false; show(); }
+      if (act === "pref") {
+        const key = button.dataset.key;
+        const value = button.dataset.value;
+        if (key === "compact" || key === "preview") prefs[key] = value === "1";
+        else if (key === "text") prefs.text = Number(value);
+        else prefs[key] = value;
+        savePrefs();
+        show();
+      }
+      if (act === "color") { person(me).color = button.dataset.value; save(); show(); }
+      if (act === "copy-code") {
+        const code = displayCode(person(me));
+        try { await navigator.clipboard.writeText(code); toast("Code copied"); }
+        catch (_) { toast(code); }
+      }
+      if (act === "leave") {
+        sessionStorage.removeItem("nightfall.me");
+        sessionStorage.removeItem("nightfall.home");
+        me = ""; home = ""; shell = false; show();
+      }
+      if (act === "mute") {
+        const t = current();
+        t.muted = t.muted || {};
+        t.muted[me] = !t.muted[me];
+        save();
+        show();
+      }
+      if (act === "pick-image") document.getElementById("file")?.click();
+      if (act === "clear-image") { pendingImage = ""; showPending(); syncSend(); }
+    });
+
+    document.body.addEventListener("submit", (event) => {
+      if (event.target.id === "gate-form") {
+        event.preventDefault();
+        const name = document.getElementById("gate-name").value.trim();
+        if (!name) return;
+        home = "";
+        enter(createPerson(name).id);
+      }
+      if (event.target.id === "new-form") {
+        event.preventDefault();
+        const code = document.getElementById("new-code").value.trim();
+        const name = document.getElementById("new-name").value.trim();
+        const error = document.getElementById("new-error");
+        if (code) {
+          const other = findByCode(code);
+          if (!other) { error.textContent = "No profile on this computer uses that code."; return; }
+          ensureThread(other.id);
+          document.getElementById("new-dialog").close();
+          show();
+          return;
+        }
+        if (!name) { error.textContent = "Enter a code or a name."; return; }
+        const created = createPerson(name);
+        ensureThread(created.id);
+        document.getElementById("new-dialog").close();
+        show();
+      }
+      if (event.target.id === "add-form") {
+        event.preventDefault();
+        const other = findByCode(document.getElementById("add-code").value);
+        const error = document.getElementById("add-error");
+        if (!other) { error.textContent = "No profile on this computer uses that code."; return; }
+        selectedId = other.id;
+        ensureThread(other.id);
+        show();
+      }
+      if (event.target.id === "profile-form") {
+        event.preventDefault();
+        const self = person(me);
+        self.name = document.getElementById("profile-name").value.trim() || self.name;
+        self.bio = document.getElementById("profile-bio").value.trim();
+        save();
+        toast("Profile saved");
+        show();
+      }
+    });
+    document.body.addEventListener("change", (event) => {
+      if (event.target.id === "disappear") {
+        const t = current();
+        if (!t) return;
+        t.disappearMs = Number(event.target.value);
+        save();
+      }
+      if (event.target.id === "default-disappear") {
+        prefs.disappearDefault = Number(event.target.value);
+        savePrefs();
+      }
+    });
+    function openNew() {
+      const box = document.getElementById("existing");
+      box.innerHTML = state.people.filter((p) => p.id !== me).map((p) => `<button class="person-btn" type="button" data-act="use-person" data-id="${p.id}">${avatar(p, "sm")}<span><b>${escapeHtml(p.name)}</b><span class="sub">${escapeHtml(displayCode(p))}</span></span></button>`).join("");
+      document.getElementById("new-code").value = "";
+      document.getElementById("new-name").value = "";
+      document.getElementById("new-error").textContent = "";
+      document.getElementById("new-dialog").showModal();
+    }
+    document.body.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-act='use-person']");
+      if (!button) return;
+      ensureThread(button.dataset.id);
+      document.getElementById("new-dialog").close();
+      show();
+    });
+    async function openVerify() {
+      const t = current();
+      if (!t) return;
+      const nums = await pairCodes(me, otherOf(t).id);
+      document.getElementById("codes").textContent = nums.join("   ");
+      document.getElementById("verify-dialog").showModal();
+    }
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        if (document.getElementById("new-dialog").open) document.getElementById("new-dialog").close();
+        else if (document.getElementById("verify-dialog").open) document.getElementById("verify-dialog").close();
+        else if (detailsOpen) { detailsOpen = false; show(); }
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") { event.preventDefault(); if (me) openNew(); }
+    });
+    window.addEventListener("storage", (event) => {
+      if (event.key !== KEY && event.key !== PREF_KEY) return;
+      if (event.key === PREF_KEY) { prefs = loadPrefs(); applyPrefs(); }
+      state = load();
+      if (me && person(me)) show();
+    });
+    let seenCall = "";
+    setInterval(() => {
+      const disk = load();
+      const diskKey = disk.liveCall ? disk.liveCall.id + ":" + disk.liveCall.phase : "";
+      const localKey = state.liveCall ? state.liveCall.id + ":" + state.liveCall.phase : "";
+      if (diskKey !== localKey) {
+        state.liveCall = disk.liveCall;
+        if (!disk.liveCall) stopMedia();
+        paintCall(true);
+        seenCall = diskKey;
+      } else if (state.liveCall?.phase === "live") {
+        const node = document.querySelector("[data-timer]");
+        if (node && state.liveCall.connectedAt) node.textContent = fmtDuration(Date.now() - state.liveCall.connectedAt);
+      }
+      if (document.querySelector("dialog[open]")) return;
+      if (sweep() && shell) show();
+    }, 1000);
+
+    prepare();
+    show();
+  </script>
+</body>
+</html>
